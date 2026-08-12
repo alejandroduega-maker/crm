@@ -2,7 +2,7 @@ services:
   - type: web
     name: crm-telefonia
     env: python
-    plan: free
+    plan: starter
     buildCommand: "pip install -r crm_web/requirements.txt"
     startCommand: "cd crm_web && gunicorn wsgi:app"
     disk:
