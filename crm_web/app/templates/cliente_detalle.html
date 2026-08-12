@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block titulo %}{{ c.nombre }} · CRM{% endblock %}
+{% block cabecera %}{{ c.nombre }}{% endblock %}
+{% block subcabecera %}{{ c.operador or 'Sin operador' }} · {{ c.producto or 'Sin producto' }} · {{ c.num_lineas }} línea{{ '' if c.num_lineas == 1 else 's' }}{% if usuario.rol == 'admin' %} · Cartera de {{ c.comercial }}{% endif %}{% endblock %}
+{% block acciones_barra %}
+<div class="acciones">
+  <a class="boton claro" href="/clientes">← Cartera</a>
+  <a class="boton" href="/clientes/{{ c.id }}/editar">Editar</a>
+  <form method="post" action="/clientes/{{ c.id }}/borrar"
+        onsubmit="return confirm('¿Mover «{{ c.nombre }}» a la papelera?\n\nNo se borra de verdad: un administrador puede restaurarlo cuando quiera.')">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="boton peligro" type="submit">Borrar</button>
+  </form>
+</div>
+{% endblock %}
+
+{% block contenido %}
+<div class="rejilla c4" style="margin-bottom:18px">
+  <div class="kpi {{ 'rojo' if c.aviso in ('urgente','sin_permanencia') else 'navy' }}">
+    <div class="et">Aviso</div>
+    <div class="valor" style="font-size:19px; padding-top:6px">{{ c.aviso_texto }}</div>
+    <div class="pie">{% if c.fin_permanencia %}Vence el {{ c.fin_permanencia|fecha }}{% else %}Sin permanencia registrada{% endif %}</div>
+  </div>
+  <div class="kpi verde"><div class="et">Cuota mensual</div><div class="valor">{{ c.cuota_total|eur0 }}</div>
+    <div class="pie">{{ c.num_lineas }} × {{ c.cuota_linea|eur }}</div></div>
+  <div class="kpi morado"><div class="et">Penalización pendiente</div><div class="valor">{{ c.penalizacion_pendiente|eur0 }}</div>
+    <div class="pie">de {{ c.penalizacion_total|eur }} totales</div></div>
+  <div class="kpi teal"><div class="et">Valor del contrato</div><div class="valor">{{ c.valor_contrato|eur0 }}</div>
+    <div class="pie">{{ c.permanencia_meses }} meses de permanencia</div></div>
+</div>
+
+<div class="rejilla c3">
+  <div class="tarjeta"><div class="cab"><h2>Ficha</h2></div><div class="cuerpo">
+    <div class="dato"><span class="et">CIF / NIF</span><span class="vl">{{ c.cif or '—' }}</span></div>
+    <div class="dato"><span class="et">Contacto</span><span class="vl">{{ c.persona or '—' }}</span></div>
+    <div class="dato"><span class="et">Teléfono</span><span class="vl">{% if c.telefono %}<a href="tel:{{ c.telefono }}">{{ c.telefono }}</a>{% else %}—{% endif %}</span></div>
+    <div class="dato"><span class="et">Email</span><span class="vl">{% if c.email %}<a href="mailto:{{ c.email }}">{{ c.email }}</a>{% else %}—{% endif %}</span></div>
+    <div class="dato"><span class="et">Estado</span><span class="vl">{{ c.estado }}</span></div>
+    <div class="dato"><span class="et">Prioridad</span><span class="vl">
+      {% if c.prioridad %}{% set cp = {'ALTA':'rojo','MEDIA':'naranja','BAJA':'gris'} %}
+      <span class="badge b-{{ cp[c.prioridad] }}">{{ c.prioridad }}</span> <small>({{ c.puntuacion }} pts)</small>
+      {% else %}—{% endif %}</span></div>
+  </div></div>
+
+  <div class="tarjeta"><div class="cab"><h2>Contrato y permanencia</h2></div><div class="cuerpo">
+    <div class="dato"><span class="et">Fecha de alta</span><span class="vl">{{ c.fecha_alta|fecha }}</span></div>
+    <div class="dato"><span class="et">Permanencia</span><span class="vl">{{ c.permanencia_meses }} meses</span></div>
+    <div class="dato"><span class="et">Fin de permanencia</span><span class="vl">{{ c.fin_permanencia|fecha }}</span></div>
+    <div class="dato"><span class="et">Días restantes</span><span class="vl">{{ c.dias_restantes if c.dias_restantes is not none else '—' }}</span></div>
+    <div class="dato"><span class="et">Meses restantes</span><span class="vl">{{ c.meses_restantes|num(1) }}</span></div>
+    <div class="dato"><span class="et">Penalización total</span><span class="vl">{{ c.penalizacion_total|eur }}</span></div>
+    <div class="dato"><span class="et">Próxima acción</span><span class="vl">{{ c.proxima_accion|fecha }}</span></div>
+    {% if c.observaciones %}
+    <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--linea)">
+      <small>Observaciones</small><p style="margin:5px 0 0">{{ c.observaciones }}</p></div>
+    {% endif %}
+  </div></div>
+
+  <div class="tarjeta"><div class="cab"><h2>Historial de este cliente</h2></div><div class="cuerpo">
+    {% if historial %}
+    <div class="linea-tiempo">
+      {% for h in historial %}
+      <div class="evento {{ h.accion }}">
+        <div class="cabecera"><strong>{{ h.usuario_nombre }}</strong>
+          <span>{{ {'crear':'dio de alta','editar':'modificó','borrar':'borró','restaurar':'restauró'}.get(h.accion, h.accion) }}</span>
+          <span class="cuando">{{ h.momento|momento }}</span></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}<div class="vacio">Sin movimientos registrados.</div>{% endif %}
+  </div></div>
+</div>
+{% endblock %}

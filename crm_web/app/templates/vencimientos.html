@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block titulo %}Vencimientos · CRM Telefonía{% endblock %}
+{% block cabecera %}Vencimientos de permanencia{% endblock %}
+{% block subcabecera %}Del más urgente al menos urgente. Esta es tu lista de llamadas.{% endblock %}
+{% block acciones_barra %}
+{% if comerciales %}
+<form method="get"><select name="comercial" onchange="this.form.submit()">
+  <option value="">Todos los comerciales</option>
+  {% for c in comerciales %}<option value="{{ c.id }}" {{ 'selected' if filtro_comercial == c.id }}>{{ c.nombre }}</option>{% endfor %}
+</select></form>
+{% endif %}
+{% endblock %}
+{% block contenido %}
+<div class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="datos">
+      <thead><tr><th style="width:44px" class="cen">#</th><th>Cliente</th><th>Teléfono</th>
+        {% if usuario.rol == 'admin' %}<th>Comercial</th>{% endif %}
+        <th>Operador</th><th class="num">Líneas</th><th class="num">Cuota/mes</th>
+        <th>Fin permanencia</th><th class="num">Días</th><th class="num">Penaliz. pendiente</th><th class="cen">Aviso</th></tr></thead>
+      <tbody>
+      {% for c in clientes %}
+        <tr class="{{ 'urgente' if c.aviso == 'urgente' }}">
+          <td class="cen"><small>{{ loop.index }}</small></td>
+          <td><a class="nombre-cliente" href="/clientes/{{ c.id }}">{{ c.nombre }}</a></td>
+          <td>{{ c.telefono or '—' }}</td>
+          {% if usuario.rol == 'admin' %}<td>{{ c.comercial }}</td>{% endif %}
+          <td>{{ c.operador or '—' }}</td>
+          <td class="num">{{ c.num_lineas }}</td>
+          <td class="num">{{ c.cuota_total|eur }}</td>
+          <td>{{ c.fin_permanencia|fecha }}</td>
+          <td class="num">{{ c.dias_restantes }}</td>
+          <td class="num">{{ c.penalizacion_pendiente|eur }}</td>
+          <td class="cen"><span class="badge b-{{ c.aviso_color }}"><span class="pt"></span>{{ c.aviso_texto }}</span></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="11"><div class="vacio"><span class="icono">◷</span>No hay permanencias registradas.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+# Bases de datos y archivos de datos
+crm_web/data/*.db
+crm_web/data/copias/
+empresas_borme.csv
+empresas_borme.sqlite
+cache_borme/
+
+# Excel y temporales de Office
+~$*.xlsx
+*.xlsx
+
+# Archivos multimedia/videos
+*.mp4
+*.mov
+*.avi
+
+# Entornos virtuales y dependencias de Python
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Configuración IDE
+.idea/
+.vscode/
+.gemini/
+.agents/
+*.swp
+*.swo

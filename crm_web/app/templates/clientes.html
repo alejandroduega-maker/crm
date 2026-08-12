@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block titulo %}Cartera · CRM Telefonía{% endblock %}
+{% block cabecera %}Cartera de clientes{% endblock %}
+{% block subcabecera %}{{ total }} cliente{{ '' if total == 1 else 's' }}{% if q.q or q.aviso or q.estado or q.operador or q.prioridad %} con los filtros aplicados{% endif %}{% endblock %}
+{% block acciones_barra %}
+<div class="acciones">
+  <a class="boton claro" href="/exportar.xlsx">↓ Excel</a>
+  <a class="boton" href="/clientes/nuevo">+ Nuevo cliente</a>
+</div>
+{% endblock %}
+
+{% block contenido %}
+<div class="tarjeta" style="margin-bottom:16px">
+  <div class="cuerpo">
+    <form method="get" class="filtros">
+      <div class="campo ancho"><label>Buscar</label>
+        <input type="search" name="q" value="{{ q.q or '' }}" placeholder="Nombre, CIF, teléfono, email, observaciones…"></div>
+      <div class="campo"><label>Aviso</label>
+        <select name="aviso">
+          <option value="">Todos</option>
+          {% for clave, (etiqueta, color) in negocio.AVISOS.items() %}
+          <option value="{{ clave }}" {{ 'selected' if q.aviso == clave }}>{{ etiqueta }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="campo"><label>Estado</label>
+        <select name="estado"><option value="">Todos</option>
+          {% for e in negocio.ESTADOS %}<option value="{{ e }}" {{ 'selected' if q.estado == e }}>{{ e }}</option>{% endfor %}
+        </select></div>
+      <div class="campo"><label>Operador</label>
+        <select name="operador"><option value="">Todos</option>
+          {% for o in negocio.OPERADORES %}<option value="{{ o }}" {{ 'selected' if q.operador == o }}>{{ o }}</option>{% endfor %}
+        </select></div>
+      <div class="campo"><label>Prioridad</label>
+        <select name="prioridad"><option value="">Todas</option>
+          {% for p in ['ALTA','MEDIA','BAJA'] %}<option value="{{ p }}" {{ 'selected' if q.prioridad == p }}>{{ p }}</option>{% endfor %}
+        </select></div>
+      {% if comerciales %}
+      <div class="campo"><label>Comercial</label>
+        <select name="comercial"><option value="">Todos</option>
+          {% for c in comerciales %}<option value="{{ c.id }}" {{ 'selected' if filtro_comercial == c.id }}>{{ c.nombre }}</option>{% endfor %}
+        </select></div>
+      {% endif %}
+      <div class="campo"><label>Ordenar por</label>
+        <select name="orden">
+          <option value="nombre" {{ 'selected' if q.orden in (None,'','nombre') }}>Nombre</option>
+          <option value="dias_restantes" {{ 'selected' if q.orden == 'dias_restantes' }}>Urgencia</option>
+          <option value="cuota_total" {{ 'selected' if q.orden == 'cuota_total' }}>Facturación</option>
+          <option value="puntuacion" {{ 'selected' if q.orden == 'puntuacion' }}>Prioridad</option>
+          <option value="valor_contrato" {{ 'selected' if q.orden == 'valor_contrato' }}>Valor contrato</option>
+        </select></div>
+      <button class="boton" type="submit">Filtrar</button>
+      <a class="boton claro" href="/clientes">Limpiar</a>
+    </form>
+  </div>
+</div>
+
+<div class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="datos">
+      <thead><tr>
+        <th>Cliente</th><th>Operador · producto</th>{% if usuario.rol == 'admin' %}<th>Comercial</th>{% endif %}
+        <th class="num">Líneas</th><th class="num">Cuota/mes</th><th>Fin permanencia</th>
+        <th class="num">Días</th><th class="num">Penaliz.</th>
+        <th class="cen">Aviso</th><th class="cen">Prioridad</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for c in clientes %}
+        <tr class="{{ 'urgente' if c.aviso == 'urgente' }}{{ ' baja' if c.estado == 'Baja' }}">
+          <td>
+            <a class="nombre-cliente" href="/clientes/{{ c.id }}">{{ c.nombre }}</a>
+            <div><small>{{ c.telefono or c.persona or c.cif or '' }}</small></div>
+          </td>
+          <td>{{ c.operador or '—' }}<div><small>{{ c.producto or '' }}</small></div></td>
+          {% if usuario.rol == 'admin' %}<td>{{ c.comercial }}</td>{% endif %}
+          <td class="num">{{ c.num_lineas }}</td>
+          <td class="num">{{ c.cuota_total|eur }}</td>
+          <td>{{ c.fin_permanencia|fecha }}</td>
+          <td class="num">{{ c.dias_restantes if c.dias_restantes is not none else '—' }}</td>
+          <td class="num">{{ c.penalizacion_pendiente|eur }}</td>
+          <td class="cen"><span class="badge b-{{ c.aviso_color }}"><span class="pt"></span>{{ c.aviso_texto }}</span></td>
+          <td class="cen">
+            {% if c.prioridad %}
+            {% set cp = {'ALTA':'rojo','MEDIA':'naranja','BAJA':'gris'} %}
+            <span class="badge b-{{ cp[c.prioridad] }}">{{ c.prioridad }}</span>
+            {% else %}—{% endif %}
+          </td>
+          <td><a class="boton claro mini" href="/clientes/{{ c.id }}/editar">Editar</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="11"><div class="vacio"><span class="icono">☰</span>
+          No hay clientes que coincidan. <a href="/clientes/nuevo">Da de alta el primero</a>.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

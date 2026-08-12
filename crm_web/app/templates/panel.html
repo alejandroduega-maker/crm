@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block titulo %}Panel · CRM Telefonía{% endblock %}
+{% block cabecera %}Panel de control{% endblock %}
+{% block subcabecera %}
+  {% if usuario.rol == 'admin' %}Visión global de todas las carteras{% else %}Tu cartera, {{ usuario.nombre.split()[0] }}{% endif %} · {{ hoy()|fecha }}
+{% endblock %}
+{% block acciones_barra %}
+<div class="acciones">
+  {% if comerciales %}
+  <form method="get" style="display:flex; gap:8px; align-items:center">
+    <select name="comercial" onchange="this.form.submit()">
+      <option value="">Todos los comerciales</option>
+      {% for c in comerciales %}
+      <option value="{{ c.id }}" {{ 'selected' if filtro_comercial == c.id }}>{{ c.nombre }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% endif %}
+  <a class="boton" href="/clientes/nuevo">+ Nuevo cliente</a>
+</div>
+{% endblock %}
+
+{% block contenido %}
+<div class="rejilla c4" style="margin-bottom:22px">
+  <div class="kpi navy"><div class="et">Clientes activos</div><div class="valor">{{ r.clientes_activos }}</div>
+    <div class="pie">{{ r.clientes_total }} en cartera · {{ r.bajas }} bajas</div></div>
+  <div class="kpi"><div class="et">Líneas activas</div><div class="valor">{{ r.lineas|num }}</div>
+    <div class="pie">{{ r.media_lineas|num(1) }} de media por cliente</div></div>
+  <div class="kpi rojo"><div class="et">Vencen en 30 días</div><div class="valor">{{ r.urgentes }}</div>
+    <div class="pie">Llamar cuanto antes</div></div>
+  <div class="kpi naranja"><div class="et">Ya sin permanencia</div><div class="valor">{{ r.sin_permanencia }}</div>
+    <div class="pie">{{ r.lineas_sin_permanencia }} líneas sin atar</div></div>
+</div>
+
+<div class="rejilla c2" style="margin-bottom:16px">
+  <div class="tarjeta">
+    <div class="cab"><h2>Situación de la cartera</h2></div>
+    <div class="cuerpo">
+      {% set total = r.urgentes + r.avisos + r.proximos + r.sin_permanencia + r.con_margen %}
+      {% if total %}
+      {% set trozos = [('Urgente (≤30 d)', r.urgentes, '#c0392b'), ('Aviso (31-60 d)', r.avisos, '#e07b39'),
+                       ('Próximo (61-90 d)', r.proximos, '#d9a406'), ('Sin permanencia', r.sin_permanencia, '#2e75b6'),
+                       ('Con margen', r.con_margen, '#1f8a52')] %}
+      <div class="rosco">
+        <svg width="168" height="168" viewBox="0 0 168 168">
+          {% set ns = namespace(acumulado=0) %}
+          {% for et, valor, color in trozos %}
+            {% if valor %}
+            {% set porcion = valor / total * 439.8 %}
+            <circle cx="84" cy="84" r="70" fill="none" stroke="{{ color }}" stroke-width="22"
+                    stroke-dasharray="{{ '%.1f'|format(porcion) }} 439.8"
+                    stroke-dashoffset="{{ '%.1f'|format(-ns.acumulado) }}"><title>{{ et }}: {{ valor }}</title></circle>
+            {% set ns.acumulado = ns.acumulado + porcion %}
+            {% endif %}
+          {% endfor %}
+        </svg>
+        <div class="leyenda">
+          {% for et, valor, color in trozos %}
+          <div><span class="cuadro" style="background:{{ color }}"></span>{{ et }}<span class="n">{{ valor }}</span></div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}<div class="vacio"><span class="icono">◔</span>Todavía no hay clientes con permanencia registrada.</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="cab"><h2>Permanencias que vencen por mes</h2><small>Próximos 12 meses</small></div>
+    <div class="cuerpo">
+      {% set maximo = (por_mes|map(attribute='valor')|max) or 1 %}
+      <div class="columnas">
+        {% for m in por_mes %}
+        <div class="columna">
+          <span class="n">{{ m.valor or '' }}</span>
+          <div class="tallo" style="--alto:{{ (m.valor / maximo * 100)|round(1) }}%; animation-delay:{{ loop.index0 * 45 }}ms"></div>
+          <span class="et">{{ m.etiqueta }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="rejilla" style="margin-bottom:16px">
+  <div class="tarjeta">
+    <div class="cab"><h2>Líneas por producto</h2></div>
+    <div class="cuerpo">
+      {% if por_producto %}
+      {% set maximo = por_producto[0].valor or 1 %}
+      <div class="barras">
+        {% for p in por_producto %}
+        <div class="barra-fila">
+          <span>{{ p.etiqueta }}</span>
+          <div class="barra-pista"><div class="barra-valor" style="--ancho:{{ (p.valor / maximo * 100)|round(1) }}%; animation-delay:{{ loop.index0 * 60 }}ms; background:linear-gradient(90deg,#1f8a52,#146c3f)"></div></div>
+          <span class="cifra">{{ p.valor|num }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="vacio">Sin datos todavía.</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="tarjeta">
+  <div class="cab"><h2>Lo más urgente</h2><small>Ordenado por días restantes</small>
+    <a class="boton claro mini" href="/vencimientos">Ver todo</a></div>
+  <div class="tabla-envoltura">
+    <table class="datos">
+      <thead><tr><th>Cliente</th><th>Teléfono</th>{% if usuario.rol == 'admin' %}<th>Comercial</th>{% endif %}
+        <th>Fin permanencia</th><th class="num">Días</th><th class="num">Penaliz. pendiente</th><th class="cen">Aviso</th></tr></thead>
+      <tbody>
+      {% for c in urgentes %}
+        <tr class="{{ 'urgente' if c.aviso == 'urgente' }}">
+          <td><a class="nombre-cliente" href="/clientes/{{ c.id }}">{{ c.nombre }}</a></td>
+          <td>{{ c.telefono or '—' }}</td>
+          {% if usuario.rol == 'admin' %}<td>{{ c.comercial }}</td>{% endif %}
+          <td>{{ c.fin_permanencia|fecha }}</td>
+          <td class="num">{{ c.dias_restantes }}</td>
+          <td class="num">{{ c.penalizacion_pendiente|eur }}</td>
+          <td class="cen"><span class="badge b-{{ c.aviso_color }}"><span class="pt"></span>{{ c.aviso_texto }}</span></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><div class="vacio"><span class="icono">✓</span>Nada urgente ahora mismo. Buen trabajo.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titulo %}Importar · CRM{% endblock %}
+{% block cabecera %}Importar desde Excel{% endblock %}
+{% block subcabecera %}Sube el archivo CRM_Telefonia.xlsx y se dará de alta cada cliente en la cartera que elijas.{% endblock %}
+{% block contenido %}
+<div style="max-width:560px">
+{% if resultado %}
+  {% if resultado.error %}
+  <div class="mensaje error"><span>✕</span><span>{{ resultado.error }}</span></div>
+  {% else %}
+  <div class="mensaje ok"><span>✓</span><span><strong>{{ resultado.insertados }}</strong> clientes importados de
+    «{{ resultado.fichero }}».{% if resultado.saltados %} Se han saltado {{ resultado.saltados }} porque ya existían
+    con el mismo nombre en esa cartera.{% endif %}</span></div>
+  {% endif %}
+{% endif %}
+<div class="tarjeta"><div class="cuerpo">
+  <form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="campo"><label>Archivo Excel (.xlsx)</label>
+      <input type="file" name="fichero" accept=".xlsx" required>
+      <div class="ayuda">Se lee la hoja «CRM» a partir de la fila 8, con las columnas del modelo que ya tienes.</div></div>
+    <div class="campo"><label>Asignar los clientes a</label>
+      <select name="comercial_id">
+        {% for c in comerciales %}
+        <option value="{{ c.id }}" {{ 'selected' if c.id == usuario.id }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select></div>
+    <button class="boton" type="submit">Importar</button>
+  </form>
+</div></div>
+<div class="tarjeta" style="margin-top:16px"><div class="cuerpo">
+  <h3 style="margin-bottom:8px">Cómo funciona</h3>
+  <p style="margin:0 0 8px; color:var(--tinta-2)">Se salta cualquier cliente que ya exista con el mismo nombre en
+  esa cartera, así que puedes repetir la importación sin miedo a duplicar.</p>
+  <p style="margin:0; color:var(--tinta-2)">La importación queda registrada en el historial con el número de
+  clientes dados de alta.</p>
+</div></div>
+</div>
+{% endblock %}

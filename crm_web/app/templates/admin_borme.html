@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block titulo %}Prospectos del BORME · CRM{% endblock %}
+{% block cabecera %}Leads del BORME{% endblock %}
+{% block subcabecera %}Busca y descarga prospectos directamente de la API oficial del Registro Mercantil (BOE) e impórtalos a tu base de datos.{% endblock %}
+{% block contenido %}
+<div style="max-width:640px">
+{% if resultado %}
+  {% if resultado.error %}
+  <div class="mensaje error"><span>✕</span><span>{{ resultado.error }}</span></div>
+  {% else %}
+  <div class="mensaje ok"><span>✓</span><span><strong>{{ resultado.insertados }}</strong> prospectos importados con éxito.{% if resultado.saltados %} Se han saltado {{ resultado.saltados }} por duplicación de nombre.{% endif %}{{ resultado.mensaje_red }}</span></div>
+  {% endif %}
+{% endif %}
+
+<div class="tarjeta"><div class="cuerpo">
+  <form method="post" id="bormeForm" onsubmit="mostrarCargando()">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div class="campo">
+        <label for="desde">Fecha de inicio</label>
+        <input type="date" id="desde" name="desde" value="{{ fecha_defecto }}" required>
+        <div class="ayuda">Formato: día/mes/año</div>
+      </div>
+      <div class="campo">
+        <label for="hasta">Fecha de fin (opcional)</label>
+        <input type="date" id="hasta" name="hasta" placeholder="Hoy">
+        <div class="ayuda">Si se deja vacío, busca hasta hoy</div>
+      </div>
+    </div>
+
+    <div class="campo" style="margin-top: 12px;">
+      <label for="provincia">Filtrar por provincias (opcional)</label>
+      <input type="text" id="provincia" name="provincia" placeholder="ej: MADRID, BARCELONA, ALICANTE" style="width: 100%;">
+      <div class="ayuda">Separadas por comas. Dejar vacío para incluir todas las provincias.</div>
+    </div>
+
+    <div class="campo">
+      <label for="comercial_id">Asignar prospectos a</label>
+      <select id="comercial_id" name="comercial_id" style="width: 100%;">
+        {% for c in comerciales %}
+        <option value="{{ c.id }}" {{ 'selected' if c.id == usuario.id }}>{{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+      <div class="campo">
+        <label for="min_lineas">Mínimo de líneas estimadas</label>
+        <input type="number" id="min_lineas" name="min_lineas" value="1" min="0" style="width: 100%;">
+        <div class="ayuda">Ignora empresas por debajo de esta estimación</div>
+      </div>
+      <div class="campo">
+        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; margin-top: 24px; cursor: pointer;">
+          <input type="checkbox" name="solo_constituciones" value="1" checked style="width: auto;">
+          <span>Solo constituciones</span>
+        </label>
+        <div class="ayuda">Solo empresas de nueva creación (sin operador previo)</div>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; margin-top: 16px; border-top: 1px solid var(--borde); padding-top: 16px;">
+      <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+        <input type="checkbox" name="incluir_personas_fisicas" value="1" style="width: auto;">
+        <span>Incluir autónomos / personas físicas</span>
+      </label>
+      <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
+        <input type="checkbox" name="incluir_descartes" value="1" style="width: auto;">
+        <span>Incluir disoluciones / concursos</span>
+      </label>
+    </div>
+
+    <div style="margin-top: 20px;" id="botonera">
+      <button class="boton" type="submit">Descargar e Importar</button>
+    </div>
+    
+    <div style="margin-top: 20px; display: none;" id="cargando">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="spinner"></div>
+        <span style="color: var(--tinta-1); font-weight: 500;">Descargando datos oficiales del BORME y analizando prospectos...</span>
+      </div>
+      <div class="ayuda" style="margin-top: 8px;">Este proceso puede tardar unos segundos dependiendo del rango de fechas y la velocidad del BOE.</div>
+    </div>
+  </form>
+</div></div>
+
+<div class="tarjeta" style="margin-top:16px"><div class="cuerpo">
+  <h3 style="margin-bottom:8px">Consejos importantes</h3>
+  <ul style="margin: 0; padding-left: 20px; color: var(--tinta-2); line-height: 1.5;">
+    <li>El BORME solo se publica de <strong>lunes a viernes no festivos</strong>. Si pides un fin de semana o festivo nacional, se saltará automáticamente.</li>
+    <li>La API pública del BOE tiene límites razonables, por lo que el script pausa 0,4 segundos entre descargas para ser respetuoso.</li>
+    <li>El sistema tiene una <strong>caché en disco</strong>: si ya has descargado un día, las siguientes búsquedas sobre ese mismo día serán instantáneas.</li>
+    <li>Las líneas de telefonía asignadas son una <strong>heurística calculada</strong> basada en el sector (objeto social) y capital social de la empresa. Úsala como guía para priorizar llamadas.</li>
+  </ul>
+</div></div>
+</div>
+
+<style>
+/* Añadimos estilos sencillos para el spinner */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--borde);
+  border-top-color: var(--primario);
+  border-radius: 50%;
+  animation: girar 1s linear infinite;
+}
+@keyframes girar {
+  to { transform: rotate(360deg); }
+}
+</style>
+
+<script>
+function mostrarCargando() {
+  document.getElementById('botonera').style.display = 'none';
+  document.getElementById('cargando').style.display = 'block';
+}
+</script>
+{% endblock %}

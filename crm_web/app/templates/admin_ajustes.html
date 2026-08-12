@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block titulo %}Parámetros · CRM{% endblock %}
+{% block cabecera %}Parámetros{% endblock %}
+{% block subcabecera %}Cambia los umbrales y toda la aplicación se recalcula al instante.{% endblock %}
+{% block contenido %}
+<div style="max-width:560px">
+<form method="post"><input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="tarjeta"><div class="cab"><h2>Umbrales de aviso</h2></div><div class="cuerpo">
+    <div class="campo"><label>Aviso rojo — días o menos hasta el fin de permanencia</label>
+      <input type="number" name="aviso_rojo" min="1" value="{{ a.aviso_rojo }}">
+      <div class="ayuda">Marca a los clientes que hay que llamar hoy.</div></div>
+    <div class="campo"><label>Aviso naranja — días o menos</label>
+      <input type="number" name="aviso_naranja" min="1" value="{{ a.aviso_naranja }}"></div>
+    <div class="campo" style="margin-bottom:0"><label>Aviso amarillo — días o menos</label>
+      <input type="number" name="aviso_amarillo" min="1" value="{{ a.aviso_amarillo }}"></div>
+  </div></div>
+  <div class="tarjeta" style="margin-top:16px"><div class="cab"><h2>General</h2></div><div class="cuerpo">
+    <div class="campo" style="margin-bottom:0"><label>Nombre de la empresa</label>
+      <input type="text" name="nombre_empresa" value="{{ a.nombre_empresa }}">
+      <div class="ayuda">Aparece bajo el logotipo, en el menú lateral.</div></div>
+  </div></div>
+  <div class="acciones" style="margin-top:16px"><button class="boton" type="submit">Guardar parámetros</button></div>
+</form>
+</div>
+{% endblock %}

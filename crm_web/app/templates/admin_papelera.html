@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}Papelera · CRM{% endblock %}
+{% block cabecera %}Papelera{% endblock %}
+{% block subcabecera %}Nada se borra de verdad. Aquí puedes devolver cualquier cliente a la cartera de su comercial.{% endblock %}
+{% block contenido %}
+<div class="tarjeta">
+  <div class="tabla-envoltura">
+    <table class="datos">
+      <thead><tr><th>Cliente</th><th>Comercial</th><th class="num">Líneas</th><th class="num">Cuota/mes</th>
+        <th>Borrado el</th><th>Borrado por</th><th></th></tr></thead>
+      <tbody>
+      {% for c in clientes %}
+        <tr>
+          <td><strong>{{ c.nombre }}</strong>{% if c.telefono %}<div><small>{{ c.telefono }}</small></div>{% endif %}</td>
+          <td>{{ c.comercial }}</td>
+          <td class="num">{{ c.num_lineas }}</td>
+          <td class="num">{{ ((c.num_lineas or 0) * (c.cuota_linea or 0))|eur }}</td>
+          <td>{{ c.borrado_en|momento }}</td>
+          <td>{{ c.borrado_por_nombre or '—' }}</td>
+          <td><form method="post" action="/admin/papelera/{{ c.id }}/restaurar">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <button class="boton verde mini" type="submit">Restaurar</button></form></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><div class="vacio"><span class="icono">✓</span>La papelera está vacía.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

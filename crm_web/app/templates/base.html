@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}CRM Telefonía{% endblock %}</title>
+<link rel="stylesheet" href="/static/css/app.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230e2a47'/><text x='16' y='22' font-size='16' font-family='Arial' font-weight='bold' fill='%239dc3e6' text-anchor='middle'>C</text></svg>">
+</head>
+<body>
+<div class="disposicion">
+  <aside class="lateral">
+    <div class="marca">
+      <div class="logo"><span class="punto"></span> CRM Telefonía</div>
+      <div class="sub">{{ ajustes.get('nombre_empresa', '') }}</div>
+    </div>
+    <nav class="menu">
+      <div class="grupo">Mi trabajo</div>
+      <a href="/" class="{{ 'activo' if ruta == '/' }}"><span class="ico">◧</span> Panel</a>
+      <a href="/clientes" class="{{ 'activo' if ruta.startswith('/clientes') }}"><span class="ico">☰</span> Cartera</a>
+      <a href="/vencimientos" class="{{ 'activo' if ruta == '/vencimientos' }}"><span class="ico">◷</span> Vencimientos</a>
+      <a href="/exportar.xlsx"><span class="ico">↓</span> Exportar a Excel</a>
+      {% if usuario and usuario.rol == 'admin' %}
+      <div class="grupo">Administración</div>
+      <a href="/admin/usuarios" class="{{ 'activo' if ruta.startswith('/admin/usuarios') }}"><span class="ico">◍</span> Usuarios</a>
+      <a href="/admin/historial" class="{{ 'activo' if ruta == '/admin/historial' }}"><span class="ico">⟲</span> Historial</a>
+      <a href="/admin/papelera" class="{{ 'activo' if ruta == '/admin/papelera' }}"><span class="ico">⌫</span> Papelera</a>
+      <a href="/admin/importar" class="{{ 'activo' if ruta == '/admin/importar' }}"><span class="ico">↑</span> Importar Excel</a>
+      <a href="/admin/borme" class="{{ 'activo' if ruta == '/admin/borme' }}"><span class="ico">⚡</span> Leads del BORME</a>
+      <a href="/admin/ajustes" class="{{ 'activo' if ruta == '/admin/ajustes' }}"><span class="ico">⚙</span> Parámetros</a>
+      {% endif %}
+    </nav>
+    <div class="pie-lateral">
+      {% if usuario %}
+      <div class="quien">
+        <div class="avatar">{{ usuario.nombre[:2]|upper }}</div>
+        <div>
+          <div class="nombre">{{ usuario.nombre }}</div>
+          <div class="rol">{{ 'Administrador' if usuario.rol == 'admin' else 'Comercial' }}</div>
+        </div>
+      </div>
+      <a href="/cambiar-password">Cambiar contraseña</a> · <a href="/logout">Salir</a>
+      {% endif %}
+    </div>
+  </aside>
+
+  <main class="principal">
+    <header class="barra">
+      <div class="titulo">
+        <h1>{% block cabecera %}{% endblock %}</h1>
+        <p>{% block subcabecera %}{% endblock %}</p>
+      </div>
+      {% block acciones_barra %}{% endblock %}
+    </header>
+    <div class="contenido">
+      {% if aviso %}
+      <div class="mensaje {{ aviso_tipo }}"><span>{{ '✕' if aviso_tipo == 'error' else '✓' }}</span><span>{{ aviso }}</span></div>
+      {% endif %}
+      {% block contenido %}{% endblock %}
+    </div>
+  </main>
+</div>
+<script src="/static/js/app.js"></script>
+</body>
+</html>

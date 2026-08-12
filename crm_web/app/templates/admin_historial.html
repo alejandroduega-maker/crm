@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block titulo %}Historial · CRM{% endblock %}
+{% block cabecera %}Historial de cambios{% endblock %}
+{% block subcabecera %}Todo lo que pasa en la aplicación queda registrado. Se muestran los 400 movimientos más recientes.{% endblock %}
+{% block contenido %}
+<div class="tarjeta" style="margin-bottom:16px"><div class="cuerpo">
+  <form method="get" class="filtros">
+    <div class="campo ancho"><label>Buscar</label>
+      <input type="search" name="texto" value="{{ q.texto or '' }}" placeholder="Nombre de cliente o de usuario…"></div>
+    <div class="campo"><label>Acción</label><select name="accion"><option value="">Todas</option>
+      {% for a in acciones %}<option value="{{ a }}" {{ 'selected' if q.accion == a }}>{{ a.replace('_',' ') }}</option>{% endfor %}
+    </select></div>
+    <div class="campo"><label>Usuario</label><select name="usuario"><option value="">Todos</option>
+      {% for u in usuarios %}<option value="{{ u.id }}" {{ 'selected' if q.usuario == u.id|string }}>{{ u.nombre }}</option>{% endfor %}
+    </select></div>
+    <button class="boton" type="submit">Filtrar</button>
+    <a class="boton claro" href="/admin/historial">Limpiar</a>
+  </form>
+</div></div>
+
+<div class="tarjeta"><div class="cuerpo">
+{% if registros %}
+<div class="linea-tiempo">
+  {% set verbos = {'crear':'dio de alta el cliente','editar':'modificó el cliente','borrar':'movió a la papelera el cliente',
+                   'restaurar':'restauró el cliente','acceso':'inició sesión','salida':'cerró sesión',
+                   'login_fallido':'intentó entrar sin éxito como','crear_usuario':'creó el usuario',
+                   'editar_usuario':'modificó el usuario','reset_password':'generó contraseña nueva para',
+                   'cambio_password':'cambió su contraseña','importar':'importó desde Excel',
+                   'exportar':'exportó a Excel','ajustes':'cambió los parámetros'} %}
+  {% for h in registros %}
+  <div class="evento {{ h.accion }}">
+    <div class="cabecera">
+      <strong>{{ h.usuario_nombre }}</strong>
+      <span>{{ verbos.get(h.accion, h.accion.replace('_',' ')) }}</span>
+      {% if h.entidad_nombre %}
+        {% if h.entidad == 'cliente' and h.entidad_id %}
+        <a href="/clientes/{{ h.entidad_id }}"><strong>{{ h.entidad_nombre }}</strong></a>
+        {% else %}<strong>{{ h.entidad_nombre }}</strong>{% endif %}
+      {% endif %}
+      <span class="cuando">{{ h.momento|momento }} · {{ h.ip }}</span>
+    </div>
+    {% if h.cambios_dict %}
+      <div class="cambios">
+      {% if h.accion == 'borrar' and h.cambios_dict.copia %}
+        <div><small>Copia de seguridad guardada con {{ h.cambios_dict.copia|length }} campos. Se puede restaurar desde la papelera.</small></div>
+      {% else %}
+        {% for campo, v in h.cambios_dict.items() %}
+          {% if v is mapping and 'antes' in v %}
+          <div><strong>{{ ETIQUETAS.get(campo, campo) }}:</strong>
+            <span class="antes">{{ v.antes if v.antes not in (None,'') else 'vacío' }}</span> →
+            <span class="despues">{{ v.despues if v.despues not in (None,'') else 'vacío' }}</span></div>
+          {% else %}
+          <div><strong>{{ ETIQUETAS.get(campo, campo) }}:</strong> {{ v }}</div>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}<div class="vacio"><span class="icono">⟲</span>No hay movimientos con esos filtros.</div>{% endif %}
+</div></div>
+{% endblock %}

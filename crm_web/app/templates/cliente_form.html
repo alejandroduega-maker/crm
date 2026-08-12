@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block titulo %}{{ titulo }} · CRM{% endblock %}
+{% block cabecera %}{{ titulo }}{% endblock %}
+{% block subcabecera %}Los campos calculados (fin de permanencia, penalización pendiente y aviso) se generan solos.{% endblock %}
+{% block contenido %}
+{% if error %}<div class="mensaje error"><span>✕</span><span>{{ error }}</span></div>{% endif %}
+<form method="post">
+<input type="hidden" name="csrf" value="{{ csrf }}">
+<div class="rejilla c2">
+  <div class="tarjeta"><div class="cuerpo">
+    <fieldset><legend>Datos del cliente</legend>
+      <div class="campo"><label>Nombre o razón social *</label>
+        <input type="text" name="nombre" value="{{ cliente.nombre or '' }}" required autofocus></div>
+      <div class="rejilla c2">
+        <div class="campo"><label>CIF / NIF</label><input type="text" name="cif" value="{{ cliente.cif or '' }}"></div>
+        <div class="campo"><label>Persona de contacto</label><input type="text" name="persona" value="{{ cliente.persona or '' }}"></div>
+      </div>
+      <div class="rejilla c2">
+        <div class="campo"><label>Teléfono</label><input type="text" name="telefono" value="{{ cliente.telefono or '' }}"></div>
+        <div class="campo"><label>Email</label><input type="email" name="email" value="{{ cliente.email or '' }}"></div>
+      </div>
+      {% if usuario.rol == 'admin' %}
+      <div class="campo"><label>Comercial asignado</label>
+        <select name="comercial_id">
+          {% for c in comerciales %}
+          <option value="{{ c.id }}" {{ 'selected' if cliente.comercial_id == c.id or (not cliente.comercial_id and c.id == usuario.id) }}>{{ c.nombre }}</option>
+          {% endfor %}
+        </select>
+        <div class="ayuda">Solo un administrador puede reasignar un cliente a otro comercial.</div></div>
+      {% endif %}
+    </fieldset>
+
+    <fieldset style="margin-bottom:0"><legend>Seguimiento</legend>
+      <div class="campo"><label>Estado</label>
+        <select name="estado">{% for e in negocio.ESTADOS %}
+          <option value="{{ e }}" {{ 'selected' if cliente.estado == e or (not cliente.estado and e == 'Activo') }}>{{ e }}</option>{% endfor %}
+        </select></div>
+      <div class="campo"><label>Próxima acción</label>
+        <input type="date" name="proxima_accion" value="{{ cliente.proxima_accion or '' }}">
+        <div class="ayuda">Se marca en rojo si se te pasa la fecha.</div></div>
+      <div class="campo" style="margin-bottom:0"><label>Observaciones</label>
+        <textarea name="observaciones">{{ cliente.observaciones or '' }}</textarea></div>
+    </fieldset>
+  </div></div>
+
+  <div class="tarjeta"><div class="cuerpo">
+    <fieldset><legend>Contrato</legend>
+      <div class="rejilla c2">
+        <div class="campo"><label>Operador</label>
+          <select name="operador"><option value=""></option>{% for o in negocio.OPERADORES %}
+            <option value="{{ o }}" {{ 'selected' if cliente.operador == o }}>{{ o }}</option>{% endfor %}</select></div>
+        <div class="campo"><label>Producto</label>
+          <select name="producto"><option value=""></option>{% for p in negocio.PRODUCTOS %}
+            <option value="{{ p }}" {{ 'selected' if cliente.producto == p }}>{{ p }}</option>{% endfor %}</select></div>
+      </div>
+      <div class="rejilla c2">
+        <div class="campo"><label>Nº de líneas</label>
+          <input type="number" name="num_lineas" min="0" step="1" value="{{ cliente.num_lineas or 0 }}"></div>
+        <div class="campo"><label>Cuota por línea (€)</label>
+          <input type="number" name="cuota_linea" min="0" step="0.01" value="{{ cliente.cuota_linea or 0 }}"></div>
+      </div>
+    </fieldset>
+
+    <fieldset style="margin-bottom:0"><legend>Permanencia y penalización</legend>
+      <div class="rejilla c2">
+        <div class="campo"><label>Fecha de alta</label>
+          <input type="date" name="fecha_alta" value="{{ cliente.fecha_alta or '' }}"></div>
+        <div class="campo"><label>Permanencia (meses)</label>
+          <input type="number" name="permanencia_meses" min="0" step="1" value="{{ cliente.permanencia_meses or 0 }}"></div>
+      </div>
+      <div class="campo" style="margin-bottom:0"><label>Penalización total (€)</label>
+        <input type="number" name="penalizacion_total" min="0" step="0.01" value="{{ cliente.penalizacion_total or 0 }}">
+        <div class="ayuda">Importe íntegro por romper el contrato. La aplicación calcula sola la parte
+          proporcional que queda pendiente según los meses restantes.</div></div>
+    </fieldset>
+  </div></div>
+</div>
+
+<div class="acciones" style="margin-top:18px">
+  <button class="boton" type="submit">Guardar</button>
+  <a class="boton claro" href="{{ '/clientes/' ~ cliente.id if cliente.id else '/clientes' }}">Cancelar</a>
+</div>
+</form>
+{% endblock %}

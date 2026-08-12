@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block cabecera %}Error {{ codigo }}{% endblock %}
+{% block contenido %}
+<div class="tarjeta"><div class="vacio">
+  <span class="icono">⚠</span>
+  <h2>{{ mensaje }}</h2>
+  <p style="margin-top:14px"><a class="boton claro" href="/">Volver al panel</a></p>
+</div></div>
+{% endblock %}

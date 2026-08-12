@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  crm:
+    build: .
+    container_name: crm_telefonia
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - CRM_SECRETO=una-clave-secreta-muy-larga-y-segura-para-firmar-sesiones-cambiame
+      - CRM_BD=/app/crm_web/data/crm.db
+    volumes:
+      # Persistencia de la base de datos SQLite y las copias de seguridad
+      - ./crm_web/data:/app/crm_web/data
+      # Persistencia de la caché de descargas del BORME
+      - ./cache_borme:/app/cache_borme
+    restart: unless-stopped

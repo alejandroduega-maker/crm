@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block titulo %}Usuarios · CRM{% endblock %}
+{% block cabecera %}Usuarios{% endblock %}
+{% block subcabecera %}Crea las cuentas de tus comerciales y controla quién tiene acceso.{% endblock %}
+{% block contenido %}
+
+{% if generada %}
+<div class="mensaje info">
+  <span>🔑</span>
+  <span><strong>Contraseña temporal para «{{ generada_para }}»:</strong>
+    <span class="credencial" style="margin:0 8px">{{ generada }}</span>
+    Cópiala ahora y pásasela en persona. No se vuelve a mostrar y nadie —ni tú— puede consultarla después:
+    el sistema solo guarda una versión cifrada. El usuario deberá cambiarla la primera vez que entre.</span>
+</div>
+{% endif %}
+
+<div class="rejilla" style="grid-template-columns:1fr 340px; align-items:start">
+  <div class="tarjeta">
+    <div class="cab"><h2>Cuentas ({{ usuarios|length }})</h2></div>
+    <div class="tabla-envoltura">
+      <table class="datos">
+        <thead><tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th class="num">Clientes</th>
+          <th class="num">Líneas</th><th>Último acceso</th><th class="cen">Estado</th><th></th></tr></thead>
+        <tbody>
+        {% for u in usuarios %}
+          <tr class="{{ '' if u.activo else 'baja' }}">
+            <td><strong>{{ u.nombre }}</strong>{% if u.email %}<div><small>{{ u.email }}</small></div>{% endif %}</td>
+            <td><code>{{ u.usuario }}</code></td>
+            <td>{% if u.rol == 'admin' %}<span class="badge b-morado">Administrador</span>
+                {% else %}<span class="badge b-azul">Comercial</span>{% endif %}</td>
+            <td class="num">{{ u.n_clientes }}</td>
+            <td class="num">{{ u.n_lineas }}</td>
+            <td><small>{{ u.ultimo_acceso|momento if u.ultimo_acceso else 'Nunca' }}</small>
+              {% if u.cambiar_password %}<div><small style="color:var(--naranja)">Pendiente de cambiar contraseña</small></div>{% endif %}</td>
+            <td class="cen">{% if u.activo %}<span class="badge b-verde">Activo</span>
+                {% else %}<span class="badge b-gris">Desactivado</span>{% endif %}</td>
+            <td>
+              <div class="acciones">
+                <button class="boton claro mini" type="button" onclick="alternar('editar-{{ u.id }}')">Editar</button>
+                <form method="post" action="/admin/usuarios/{{ u.id }}/password"
+                      onsubmit="return confirm('¿Generar una contraseña nueva para {{ u.nombre }}?\n\nLa actual dejará de funcionar inmediatamente.')">
+                  <input type="hidden" name="csrf" value="{{ csrf }}">
+                  <button class="boton claro mini" type="submit">Nueva contraseña</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          <tr id="editar-{{ u.id }}" hidden><td colspan="8" style="background:#f8fafd">
+            <form method="post" action="/admin/usuarios/{{ u.id }}/editar" class="filtros" style="padding:6px 0">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <div class="campo ancho"><label>Nombre</label><input type="text" name="nombre" value="{{ u.nombre }}"></div>
+              <div class="campo ancho"><label>Email</label><input type="email" name="email" value="{{ u.email or '' }}"></div>
+              <div class="campo"><label>Rol</label><select name="rol">
+                <option value="comercial" {{ 'selected' if u.rol == 'comercial' }}>Comercial</option>
+                <option value="admin" {{ 'selected' if u.rol == 'admin' }}>Administrador</option></select></div>
+              <div class="campo"><label>Estado</label><select name="activo">
+                <option value="1" {{ 'selected' if u.activo }}>Activo</option>
+                <option value="0" {{ 'selected' if not u.activo }}>Desactivado</option></select></div>
+              <button class="boton" type="submit">Guardar</button>
+            </form></td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="cab"><h2>Nuevo usuario</h2></div>
+    <div class="cuerpo">
+      <form method="post" action="/admin/usuarios/nuevo">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div class="campo"><label>Nombre completo *</label><input type="text" name="nombre" required></div>
+        <div class="campo"><label>Usuario *</label><input type="text" name="usuario" required autocapitalize="none">
+          <div class="ayuda">Con esto entra en la aplicación.</div></div>
+        <div class="campo"><label>Email</label><input type="email" name="email"></div>
+        <div class="campo"><label>Rol</label><select name="rol">
+          <option value="comercial">Comercial — solo ve su cartera</option>
+          <option value="admin">Administrador — lo ve y gestiona todo</option></select></div>
+        <div class="campo"><label>Contraseña temporal</label><input type="text" name="password" placeholder="Se genera sola si lo dejas vacío">
+          <div class="ayuda">Mínimo 8 caracteres con letras y números. El usuario deberá cambiarla al entrar.</div></div>
+        <button class="boton" type="submit" style="width:100%">Crear usuario</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

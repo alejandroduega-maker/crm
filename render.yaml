@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: crm-telefonia
+    env: python
+    plan: free
+    buildCommand: "pip install -r crm_web/requirements.txt"
+    startCommand: "cd crm_web && gunicorn wsgi:app"
+    disk:
+      name: crm_data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: CRM_BD
+        value: /data/crm.db
+      - key: CRM_SECRETO
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.8
