@@ -40,4 +40,53 @@
     </table>
   </div>
 </div>
+
+<div class="tarjeta" style="margin-top: 24px;">
+  <div class="cab"><h2>Tareas, Avisos y Alarmas programadas</h2><small>Agenda de llamadas y gestiones planificadas</small></div>
+  <div class="tabla-envoltura">
+    <table class="datos">
+      <thead><tr>
+        <th style="width:44px" class="cen">Estado</th>
+        <th>Fecha planificada</th>
+        <th>Tipo</th>
+        <th>Cliente</th>
+        <th>Notas / Descripción de la tarea</th>
+        {% if usuario.rol == 'admin' %}<th>Comercial</th>{% endif %}
+        <th>Acciones</th>
+      </tr></thead>
+      <tbody>
+      {% for t in tareas_planificadas %}
+        <tr style="{% if t.completada %}opacity: 0.65;{% endif %}">
+          <td class="cen" style="font-size: 16px;">
+            {% if t.completada %}✅{% else %}⏳{% endif %}
+          </td>
+          <td style="font-weight: 600;">{{ t.fecha|fecha }}</td>
+          <td>
+            <span class="badge b-{{ {'Tarea':'azul', 'Aviso':'naranja', 'Alarma':'rojo'}.get(t.tipo, 'gris') }}">{{ t.tipo }}</span>
+          </td>
+          <td><a class="nombre-cliente" href="/clientes/{{ t.cliente_id }}">{{ t.cliente_nombre }}</a></td>
+          <td style="{% if t.completada %}text-decoration: line-through;{% endif %}">{{ t.nota }}</td>
+          {% if usuario.rol == 'admin' %}<td>{{ t.comercial }}</td>{% endif %}
+          <td>
+            <div style="display: flex; gap: 8px;">
+              {% if not t.completada %}
+              <form method="post" action="/clientes/{{ t.cliente_id }}/tareas/{{ t.id }}/completar" style="margin: 0;">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button type="submit" class="boton claro mini" style="padding: 2px 8px; font-size: 11px;">Hecho</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/clientes/{{ t.cliente_id }}/tareas/{{ t.id }}/eliminar" style="margin: 0;" onsubmit="return confirm('¿Eliminar esta tarea?')">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button type="submit" class="boton peligro mini" style="padding: 2px 8px; font-size: 11px; background-color: transparent; border: none; color: #a3271b; cursor: pointer;">Eliminar</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="7"><div class="vacio"><span class="icono">✓</span>No hay tareas planificadas.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

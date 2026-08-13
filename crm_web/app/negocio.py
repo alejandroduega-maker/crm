@@ -69,7 +69,6 @@ def calcular(cliente: dict, hoy: date | None = None, umbrales=(30, 60, 90)) -> d
     alta = a_fecha(c.get("fecha_alta"))
 
     c["cuota_total"] = r2(lineas * cuota_linea)
-    c["valor_contrato"] = r2(c["cuota_total"] * permanencia)
 
     if alta and permanencia > 0:
         fin = sumar_meses(alta, permanencia)
@@ -148,7 +147,6 @@ def resumen(clientes: list[dict]) -> dict:
         "media_lineas": r2(lineas / n_act, 1) if n_act else 0,
         "cuota_media_cliente": r2(facturacion / n_act) if n_act else 0,
         "cuota_media_linea": r2(facturacion / lineas) if lineas else 0,
-        "valor_cartera": r2(sum(c["valor_contrato"] for c in activos)),
         "penalizacion_pendiente": r2(sum(c["penalizacion_pendiente"] or 0 for c in activos)),
         "urgentes": cuenta("urgente"),
         "avisos": cuenta("aviso"),

@@ -121,8 +121,35 @@ check("calcula fin de permanencia (15/01/2027)", "15/01/2027" in r["texto"])
 r = c.get(f"/clientes/{cid}/editar"); tok = c.csrf(r["texto"])
 r = c.post(f"/clientes/{cid}/editar", {**nuevo, "csrf": tok, "num_lineas": "6"})
 check("edita cliente", r["estado"] == 303)
-r = c.get(f"/clientes/{cid}"); check("recalcula tras editar (6 x 20 = 120 €)", "120 €" in r["texto"] and "2.880 €" in r["texto"])
+r = c.get(f"/clientes/{cid}"); check("recalcula tras editar (6 x 20 = 120 €)", "120 €" in r["texto"])
 check("registra el cambio en la ficha", "modificó" in r["texto"])
+
+# --- Prueba de Tareas/Avisos ---
+r = c.post(f"/clientes/{cid}/tareas/nueva", {"csrf": tok, "fecha": "2026-08-15", "tipo": "Tarea", "nota": "Llamar para ofertar"})
+check("crea tarea/aviso", r["estado"] == 303)
+r = c.get(f"/clientes/{cid}")
+check("tarea visible en ficha", "Llamar para ofertar" in r["texto"] and "15/08/2026" in r["texto"])
+
+import sqlite3
+db_con = sqlite3.connect(os.environ["CRM_BD"])
+tid = db_con.execute("SELECT id FROM tareas_cliente WHERE cliente_id=?", (cid,)).fetchone()[0]
+db_con.close()
+
+r = c.post(f"/clientes/{cid}/tareas/{tid}/completar", {"csrf": tok})
+check("completa tarea", r["estado"] == 303)
+r = c.get(f"/clientes/{cid}")
+check("tarea marcada como completada", "✅" in r["texto"])
+
+r = c.post(f"/clientes/{cid}/tareas/nueva", {"csrf": tok, "fecha": "2026-08-16", "tipo": "Alarma", "nota": "Alarma borrar"})
+db_con = sqlite3.connect(os.environ["CRM_BD"])
+tid2 = db_con.execute("SELECT id FROM tareas_cliente WHERE cliente_id=? AND nota='Alarma borrar'", (cid,)).fetchone()[0]
+db_con.close()
+
+r = c.post(f"/clientes/{cid}/tareas/{tid2}/eliminar", {"csrf": tok})
+check("elimina tarea", r["estado"] == 303)
+r = c.get(f"/clientes/{cid}")
+check("tarea borrada no visible", "Alarma borrar" not in r["texto"])
+
 
 print("\n== 4. Papelera y recuperación ==")
 r = c.post(f"/clientes/{cid}/borrar", {"csrf": tok})

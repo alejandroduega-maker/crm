@@ -202,8 +202,23 @@ def vista_panel(peticion):
     filtro_comercial = int(filtro_comercial) if (filtro_comercial or "").isdigit() else None
     lista = clientes_visibles(con, peticion.usuario, comercial_id=filtro_comercial)
     datos = negocio.resumen(lista)
+    uid_tareas = filtro_comercial or (None if peticion.usuario["rol"] == "admin" else peticion.usuario["id"])
+    sql_tareas = """
+        SELECT t.*, c.nombre AS cliente_nombre 
+        FROM tareas_cliente t 
+        JOIN clientes c ON c.id = t.cliente_id 
+        WHERE t.completada = 0 AND c.borrado = 0
+    """
+    args_tareas = []
+    if uid_tareas:
+        sql_tareas += " AND c.comercial_id = ?"
+        args_tareas.append(uid_tareas)
+    sql_tareas += " ORDER BY t.fecha ASC, t.id DESC LIMIT 6"
+    tareas_pendientes = [dict(f) for f in con.execute(sql_tareas, args_tareas)]
+
     urgentes = sorted([c for c in lista if c["aviso"] in ("urgente", "sin_permanencia")],
                       key=lambda c: c["dias_restantes"])
+
     return render(
         peticion, "panel.html",
         r=datos, clientes=lista, urgentes=urgentes[:8],
@@ -211,6 +226,7 @@ def vista_panel(peticion):
         por_producto=negocio.agrupar(lista, "producto", lambda c: int(c.get("num_lineas") or 0)),
         comerciales=comerciales(con) if peticion.usuario["rol"] == "admin" else [],
         filtro_comercial=filtro_comercial,
+        tareas_pendientes=tareas_pendientes,
     )
 
 
@@ -231,7 +247,7 @@ def vista_clientes(peticion):
         if q.get(campo):
             lista = [c for c in lista if str(c.get(clave)) == q[campo]]
     orden = q.get("orden", "nombre")
-    reverso = orden in ("cuota_total", "penalizacion_pendiente", "valor_contrato", "puntuacion")
+    reverso = orden in ("cuota_total", "penalizacion_pendiente", "puntuacion")
     lista.sort(key=lambda c: (c.get(orden) is None, c.get(orden) if not isinstance(c.get(orden), str)
                               else c[orden].lower()), reverse=reverso)
     return render(peticion, "clientes.html", clientes=lista, q=q,
@@ -248,9 +264,26 @@ def vista_vencimientos(peticion):
     lista = [c for c in clientes_visibles(con, peticion.usuario, comercial_id=filtro_comercial)
              if c["estado"] != "Baja" and c["dias_restantes"] is not None]
     lista.sort(key=lambda c: c["dias_restantes"])
+
+    uid_tareas = filtro_comercial or (None if peticion.usuario["rol"] == "admin" else peticion.usuario["id"])
+    sql_tareas = """
+        SELECT t.*, c.nombre AS cliente_nombre, u.nombre AS comercial 
+        FROM tareas_cliente t 
+        JOIN clientes c ON c.id = t.cliente_id 
+        JOIN usuarios u ON u.id = c.comercial_id
+        WHERE c.borrado = 0
+    """
+    args_tareas = []
+    if uid_tareas:
+        sql_tareas += " AND c.comercial_id = ?"
+        args_tareas.append(uid_tareas)
+    sql_tareas += " ORDER BY t.completada ASC, t.fecha ASC, t.id DESC LIMIT 100"
+    tareas_planificadas = [dict(f) for f in con.execute(sql_tareas, args_tareas)]
+
     return render(peticion, "vencimientos.html", clientes=lista,
                   comerciales=comerciales(con) if peticion.usuario["rol"] == "admin" else [],
-                  filtro_comercial=filtro_comercial)
+                  filtro_comercial=filtro_comercial,
+                  tareas_planificadas=tareas_planificadas)
 
 
 @rutas.route("/clientes/nuevo", ("GET", "POST"))
@@ -286,7 +319,9 @@ def vista_cliente(peticion, cid):
                       mensaje="Ese cliente no existe o no es de tu cartera."), 404
     historial = [dict(f) for f in con.execute(
         "SELECT * FROM auditoria WHERE entidad='cliente' AND entidad_id=? ORDER BY momento DESC LIMIT 30", (cid,))]
-    return render(peticion, "cliente_detalle.html", c=cliente, historial=historial)
+    tareas = [dict(f) for f in con.execute(
+        "SELECT * FROM tareas_cliente WHERE cliente_id=? ORDER BY completada ASC, fecha ASC, id DESC", (cid,))]
+    return render(peticion, "cliente_detalle.html", c=cliente, historial=historial, tareas=tareas)
 
 
 @rutas.route("/clientes/<int:cid>/editar", ("GET", "POST"))
@@ -326,6 +361,71 @@ def vista_borrar_cliente(peticion, cid):
                  {"copia": {k: cliente.get(k) for k in db.CAMPOS_CLIENTE}}, peticion.ip)
     con.commit()
     return redirect("/clientes", f"«{cliente['nombre']}» se ha movido a la papelera. Un administrador puede restaurarlo.")
+
+
+@rutas.route("/clientes/<int:cid>/tareas/nueva", ("POST",))
+@requiere_login
+def vista_nueva_tarea(peticion, cid):
+    con = peticion.con
+    cliente = cliente_o_none(con, cid, peticion.usuario)
+    if not cliente:
+        return redirect("/clientes", "Cliente no encontrado o no pertenece a tu cartera.", "error")
+
+    fecha = peticion.get("fecha")
+    tipo = peticion.get("tipo")
+    nota = peticion.get("nota")
+
+    if not fecha or not nota:
+        return redirect(f"/clientes/{cid}", "La fecha y la nota son obligatorias.", "error")
+
+    con.execute(
+        """INSERT INTO tareas_cliente (cliente_id, fecha, tipo, nota, completada, creado_en, creado_por)
+           VALUES (?, ?, ?, ?, 0, ?, ?)""",
+        (cid, fecha, tipo, nota, db.ahora(), peticion.usuario["id"])
+    )
+
+    db.registrar(con, peticion.usuario, "crear_tarea", "cliente", cid, cliente["nombre"],
+                 {"fecha": fecha, "tipo": tipo, "nota": nota}, peticion.ip)
+    con.commit()
+    return redirect(f"/clientes/{cid}", "Planificación añadida.")
+
+
+@rutas.route("/clientes/<int:cid>/tareas/<int:tid>/completar", ("POST",))
+@requiere_login
+def vista_completar_tarea(peticion, cid, tid):
+    con = peticion.con
+    cliente = cliente_o_none(con, cid, peticion.usuario)
+    if not cliente:
+        return redirect("/clientes", "Cliente no encontrado o no pertenece a tu cartera.", "error")
+
+    tarea = con.execute("SELECT * FROM tareas_cliente WHERE id=? AND cliente_id=?", (tid, cid)).fetchone()
+    if not tarea:
+        return redirect(f"/clientes/{cid}", "Planificación no encontrada.", "error")
+
+    con.execute("UPDATE tareas_cliente SET completada=1 WHERE id=?", (tid,))
+    db.registrar(con, peticion.usuario, "completar_tarea", "cliente", cid, cliente["nombre"],
+                 {"tarea_id": tid, "nota": tarea["nota"]}, peticion.ip)
+    con.commit()
+    return redirect(f"/clientes/{cid}", "Tarea completada.")
+
+
+@rutas.route("/clientes/<int:cid>/tareas/<int:tid>/eliminar", ("POST",))
+@requiere_login
+def vista_eliminar_tarea(peticion, cid, tid):
+    con = peticion.con
+    cliente = cliente_o_none(con, cid, peticion.usuario)
+    if not cliente:
+        return redirect("/clientes", "Cliente no encontrado o no pertenece a tu cartera.", "error")
+
+    tarea = con.execute("SELECT * FROM tareas_cliente WHERE id=? AND cliente_id=?", (tid, cid)).fetchone()
+    if not tarea:
+        return redirect(f"/clientes/{cid}", "Planificación no encontrada.", "error")
+
+    con.execute("DELETE FROM tareas_cliente WHERE id=?", (tid,))
+    db.registrar(con, peticion.usuario, "eliminar_tarea", "cliente", cid, cliente["nombre"],
+                 {"tarea_id": tid, "nota": tarea["nota"]}, peticion.ip)
+    con.commit()
+    return redirect(f"/clientes/{cid}", "Planificación eliminada.")
 
 
 # ------------------------------------------------------- panel de administrador
@@ -772,7 +872,7 @@ def vista_exportar(peticion):
     cabeceras = ["Cliente", "CIF", "Contacto", "Teléfono", "Email", "Operador", "Producto",
                  "Nº líneas", "Cuota/línea", "Cuota total", "Fecha alta", "Permanencia",
                  "Fin permanencia", "Días restantes", "Penalización total", "Penalización pendiente",
-                 "Valor contrato", "Estado", "Aviso", "Prioridad", "Comercial",
+                 "Estado", "Aviso", "Prioridad", "Comercial",
                  "Próxima acción", "Observaciones"]
     for i, texto in enumerate(cabeceras, start=1):
         celda = hoja.cell(row=1, column=i, value=texto)
@@ -785,15 +885,15 @@ def vista_exportar(peticion):
                    c["producto"], c["num_lineas"], c["cuota_linea"], c["cuota_total"],
                    negocio.a_fecha(c["fecha_alta"]), c["permanencia_meses"], c["fin_permanencia"],
                    c["dias_restantes"], c["penalizacion_total"], c["penalizacion_pendiente"],
-                   c["valor_contrato"], c["estado"], c["aviso_texto"],
+                   c["estado"], c["aviso_texto"],
                    c["prioridad"], c.get("comercial"), negocio.a_fecha(c["proxima_accion"]),
                    c["observaciones"]]
         for i, valor in enumerate(valores, start=1):
             celda = hoja.cell(row=f, column=i, value=valor)
             celda.font = Font(name="Arial", size=9)
-            if i in (9, 10, 15, 16, 17):
+            if i in (9, 10, 15, 16):
                 celda.number_format = '#,##0.00" €"'
-            if i in (11, 13, 22):
+            if i in (11, 13, 21):
                 celda.number_format = "DD/MM/YYYY"
     hoja.freeze_panes = "A2"
     hoja.auto_filter.ref = f"A1:W{max(1, len(lista) + 1)}"

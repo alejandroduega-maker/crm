@@ -15,7 +15,7 @@
 {% endblock %}
 
 {% block contenido %}
-<div class="rejilla c4" style="margin-bottom:18px">
+<div class="rejilla c3" style="margin-bottom:18px">
   <div class="kpi {{ 'rojo' if c.aviso in ('urgente','sin_permanencia') else 'navy' }}">
     <div class="et">Aviso</div>
     <div class="valor" style="font-size:19px; padding-top:6px">{{ c.aviso_texto }}</div>
@@ -25,11 +25,9 @@
     <div class="pie">{{ c.num_lineas }} × {{ c.cuota_linea|eur }}</div></div>
   <div class="kpi morado"><div class="et">Penalización pendiente</div><div class="valor">{{ c.penalizacion_pendiente|eur0 }}</div>
     <div class="pie">de {{ c.penalizacion_total|eur }} totales</div></div>
-  <div class="kpi teal"><div class="et">Valor del contrato</div><div class="valor">{{ c.valor_contrato|eur0 }}</div>
-    <div class="pie">{{ c.permanencia_meses }} meses de permanencia</div></div>
 </div>
 
-<div class="rejilla c3">
+<div class="rejilla c2" style="margin-bottom:18px">
   <div class="tarjeta"><div class="cab"><h2>Ficha</h2></div><div class="cuerpo">
     <div class="dato"><span class="et">CIF / NIF</span><span class="vl">{{ c.cif or '—' }}</span></div>
     <div class="dato"><span class="et">Contacto</span><span class="vl">{{ c.persona or '—' }}</span></div>
@@ -52,8 +50,70 @@
     <div class="dato"><span class="et">Próxima acción</span><span class="vl">{{ c.proxima_accion|fecha }}</span></div>
     {% if c.observaciones %}
     <div style="margin-top:12px; padding-top:12px; border-top:1px solid var(--linea)">
-      <small>Observaciones</small><p style="margin:5px 0 0">{{ c.observaciones }}</p></div>
+      <small>Observaciones</small><p style="margin:5px 0 0; white-space: pre-wrap;">{{ c.observaciones }}</p></div>
     {% endif %}
+  </div></div>
+</div>
+
+<div class="rejilla c2">
+  <div class="tarjeta"><div class="cab"><h2>Planificación (Tareas, Avisos y Alarmas)</h2></div><div class="cuerpo">
+    <div style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;">
+      {% if tareas %}
+        <ul style="list-style: none; padding: 0; margin: 0;">
+          {% for t in tareas %}
+          <li style="display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--linea); {% if t.completada %}opacity: 0.65;{% endif %}">
+            <div style="display: flex; gap: 8px; align-items: flex-start;">
+              <span style="font-size: 16px; margin-top: 1px;">
+                {% if t.completada %}✅{% else %}⏳{% endif %}
+              </span>
+              <div>
+                <span class="badge b-{{ {'Tarea':'azul', 'Aviso':'naranja', 'Alarma':'rojo'}.get(t.tipo, 'gris') }}" style="font-size: 10px; padding: 1px 6px;">{{ t.tipo }}</span>
+                <span style="font-weight: 600; font-size: 12px; color: var(--tinta-2); margin-left: 4px;">{{ t.fecha|fecha }}</span>
+                <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--tinta-1); {% if t.completada %}text-decoration: line-through;{% endif %}">{{ t.nota }}</p>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              {% if not t.completada %}
+              <form method="post" action="/clientes/{{ c.id }}/tareas/{{ t.id }}/completar" style="margin: 0;">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button type="submit" class="boton claro mini" style="padding: 2px 6px; font-size: 11px;">Hecho</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/clientes/{{ c.id }}/tareas/{{ t.id }}/eliminar" style="margin: 0;" onsubmit="return confirm('¿Eliminar esta planificación?')">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <button type="submit" class="boton peligro mini" style="padding: 2px 6px; font-size: 11px; background-color: transparent; border: none; color: #a3271b; cursor: pointer;">✕</button>
+              </form>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="vacio" style="padding: 24px 0;">No hay tareas ni avisos programados.</div>
+      {% endif %}
+    </div>
+    
+    <div style="border-top: 1px solid var(--linea); padding-top: 12px; margin-top: 8px;">
+      <h3 style="margin: 0 0 8px 0; font-size: 13px; color: var(--tinta-2);">Planificar nueva acción</h3>
+      <form method="post" action="/clientes/{{ c.id }}/tareas/nueva" style="display: flex; flex-direction: column; gap: 10px;">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <div class="campo" style="margin:0">
+            <input type="date" name="fecha" required style="padding: 4px 8px; font-size:12px; height: 32px; box-sizing: border-box; width: 100%;">
+          </div>
+          <div class="campo" style="margin:0">
+            <select name="tipo" style="padding: 4px 8px; font-size:12px; height: 32px; box-sizing: border-box; width: 100%;">
+              <option value="Tarea">Tarea</option>
+              <option value="Aviso">Aviso</option>
+              <option value="Alarma">Alarma</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" name="nota" placeholder="Notas (ej: Llamar a las 10h)" required style="flex-grow: 1; padding: 4px 8px; font-size:12px; height: 32px; box-sizing: border-box;">
+          <button class="boton mini" type="submit" style="height: 32px; padding: 0 16px; font-size:12px;">Añadir</button>
+        </div>
+      </form>
+    </div>
   </div></div>
 
   <div class="tarjeta"><div class="cab"><h2>Historial de este cliente</h2></div><div class="cuerpo">
@@ -62,7 +122,7 @@
       {% for h in historial %}
       <div class="evento {{ h.accion }}">
         <div class="cabecera"><strong>{{ h.usuario_nombre }}</strong>
-          <span>{{ {'crear':'dio de alta','editar':'modificó','borrar':'borró','restaurar':'restauró'}.get(h.accion, h.accion) }}</span>
+          <span>{{ {'crear':'dio de alta','editar':'modificó','borrar':'borró','restaurar':'restauró','crear_tarea':'planificó','completar_tarea':'marcó como hecha','eliminar_tarea':'eliminó la tarea'}.get(h.accion, h.accion) }}</span>
           <span class="cuando">{{ h.momento|momento }}</span></div>
       </div>
       {% endfor %}

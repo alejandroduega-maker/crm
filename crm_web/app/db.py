@@ -72,6 +72,18 @@ CREATE TABLE IF NOT EXISTS ajustes (
     clave  TEXT PRIMARY KEY,
     valor  TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS tareas_cliente (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    cliente_id   INTEGER NOT NULL REFERENCES clientes(id) ON DELETE CASCADE,
+    fecha        TEXT NOT NULL,
+    tipo         TEXT NOT NULL,
+    nota         TEXT NOT NULL,
+    completada   INTEGER DEFAULT 0,
+    creado_en    TEXT NOT NULL,
+    creado_por   INTEGER REFERENCES usuarios(id)
+);
+CREATE INDEX IF NOT EXISTS idx_tareas_cliente ON tareas_cliente(cliente_id);
 """
 
 AJUSTES_POR_DEFECTO = {
@@ -113,6 +125,13 @@ def conectar():
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='usuarios'").fetchone()
     if not existe:
         _crear_esquema(con)
+    else:
+        # En caso de actualización, nos aseguramos de que existe la tabla de tareas
+        existe_tareas = con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='tareas_cliente'").fetchone()
+        if not existe_tareas:
+            con.executescript(ESQUEMA)
+            con.commit()
     return con
 
 
