@@ -50,7 +50,7 @@ if __name__ == "__main__":
 
     copia_de_seguridad()
     puerto = int(os.environ.get("PORT", 8000))
-    print(f"\n  CRM Telefonía en marcha  →  http://localhost:{puerto}\n  (Ctrl+C para parar)\n")
+    print(f"\n  CRM Telefonia en marcha  ->  http://localhost:{puerto}\n  (Ctrl+C para parar)\n")
     if os.environ.get("CRM_ABRIR", "1") == "1":
         try:
             webbrowser.open(f"http://localhost:{puerto}")
